@@ -11,7 +11,8 @@ function Cathode(ActiveMaterial::String)
 
 
     #parsing input
-    FormulaDict = Dict("Li"=>"lithium","Co"=>"cobalt", "O"=>"oxygen","Fe"=>"iron","Ni"=>"nickel","P"=>"phosphate","Mn"=>"manganese","Al"=>"aluminium", "Si"=>"silicon")
+    FormulaDict = Dict("Li"=>"lithium","Co"=>"cobalt", "O"=>"oxygen","Fe"=>"iron","Ni"=>"nickel","P"=>"phosphate",
+                        "Mn"=>"manganese","Al"=>"aluminium","Si"=>"silicon","C" =>"carbon")
     rg1 = r"([[:alpha:]]+|[[:blank:]])"
     rg2 = r"([0-9]*[.]*[0-9]*[0-9]*[0-9])"
 
@@ -25,19 +26,45 @@ function Cathode(ActiveMaterial::String)
 
 
     MolecularMass = 0.0u"g/mol"
+    ComponentDensity = 0.0u"cm^3/g"
     for j in 1:length(chars)
         MolecularMass += ustrip(elements[FormulaDict[chars[j]]].atomic_mass)*(u"g/mol")*numbers[j]
+        if chars[j] != "Li" && chars[j] != "O"
+        ComponentDensity += numbers[j]/(elements[FormulaDict[chars[j]]].density)
+        end
     end
-
-    Loading = (2±0.1)u"mg/cm^2"
-    Thickness = (40±2)u"μm"
-    ArealCap = (3±0.15)u"mA*hr/cm^2"
+    Porousity = (0.60±0.012)u"cm^3/cm^3"
+    CoatingThickness = (50.0±2)u"μm"
+    CollectorThickness = (13±0.26)u"μm"
+    Loading = (1-Porousity)*(CoatingThickness/1e4u"μm/cm")/(ComponentDensity/1e3u"mg/g")#
+    
     Resistivity = (15±0.75)u"Ω/cm^2"
-    
-    
-    Qt = uconvert(u"mA*hr/g",(elements[FormulaDict[chars[1]]].shells[end]*F/MolecularMass))
+    Area = (85±1.7)u"cm^2"
+    Electrode_Mass = uconvert(u"g",(Area*Loading)/1e3u"mg/g"+(elements["aluminium"].density*1000u"mg/g"*CollectorThickness/1e4u"μm/cm")*Area)
 
-    return MolecularMass, Loading, Thickness, ArealCap, Resistivity, Qt
+    
+    
+    #Experimental
+    LCO = 180u"mA*hr/g"
+    Qt = (205±4.1)u"mA*hr/g" #NCM811
+    NCM532 = 200u"mA*hr/g"
+    LFP = 166u"mA*hr/g"
+
+    LCO_V = 3.8
+    NMC811_V = 3.7
+    Electrode_V = (3.87±0.01)u"V" #NMC622_V
+    LFP = 3.4
+
+
+    #Theoretical
+    #Qt = uconvert(u"mA*hr/g",(elements[FormulaDict[chars[1]]].shells[end]*F/MolecularMass))*0.7
+
+    ArealCap = (Loading*Qt)/1000u"mg/g"
+    Electrode_Capacity = Area*ArealCap
+    Electrode_Energy_Density = uconvert(u"W*hr/kg",(Electrode_Capacity/(1000u"mA/A")*Electrode_V)/(Electrode_Mass/(1000u"g/kg")))
+
+
+    return MolecularMass, Loading, CoatingThickness, ArealCap, Resistivity, Qt, Electrode_Capacity, Electrode_Mass, ComponentDensity, Electrode_Energy_Density
 
 
     #Data:
@@ -76,12 +103,12 @@ function Anode(Type::String, Loading, Capacity)
     if ActiveMaterial == "Graphite"
         #MolecularMass = Li+C+2*Ou"g/mol"
         Loading = (2±0.1)u"mg/cm^2"
-        Thickness = (40±2)u"μm"
+        CoatingThickness = (40±2)u"μm"
         ArealCap = (3±0.15)u"mA*hr/cm^2"
         Resistivity = (15±0.75)u"Ω/cm^2"
     end
 
-    return Loading, Thickness, ArealCap, Resistivity
+    return Loading, CoatingThickness, ArealCap, Resistivity
 
     #Data:
     #Molecular 
