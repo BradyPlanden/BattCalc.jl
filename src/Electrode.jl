@@ -1,7 +1,7 @@
 function Electrode(chars, nums, Definition, Calc)
     """
 
-    This function constructs the electrode structure. 
+    This function constructs the cathode structure. 
 
     """
 
@@ -42,6 +42,14 @@ function Electrode(chars, nums, Definition, Calc)
 end
 
 
+
+
+    # For a given ActiveMaterial, construct the corresponding cathode structure from theoretical molecular values
+    # To add: composition summation, i.e. NCM811 => 0.8Ni:0.1Co:Mn will automate to 0.8Ni:0.1Co:0.1Mn since (Ni+Co+Mn) = 1.0
+
+    # Checks: ActiveMaterial is found in dict, Loading is within global limits, 
+
+
     #Data:
     #Molecular 
     #Areal Capacity
@@ -52,7 +60,7 @@ end
     #Specific Resistivity
 
 
-    #To Do:
+    #Calculations:
     #Energy Density (Nom. Voltage * Capcity / Mass)
     #Cathode Resistivity (Specific Capacity * Area)
     #Total Mass (Specific Loading * Area)
