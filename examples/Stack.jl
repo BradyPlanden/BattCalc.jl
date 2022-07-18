@@ -1,3 +1,24 @@
+using BattCalc
+
+Stack = Params(Anode(),Cathode(),Separator())
+Layers = 20
+Cell = Pouch(Stack, "NCM811","Graphite","1Li:0.8Ni:0.1Co:0.1Mn:2O","1.0Li6.0C", "Exper", "Intercalation", Layers)
+Module = MultiCell(Stack, Cell, N=200, M=20)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #Intercalation
 @with_kw mutable struct Cathode
