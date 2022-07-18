@@ -1,13 +1,11 @@
 module BattCalc
 
+
 using Unitful, Parameters, LinearAlgebra, Measurements, PeriodicTable
 export Pouch, Anode, Cathode, Separator, Params
 export Electrode, Parser, F, R, FormulaDict, SpecificCap, NomVoltage
 export Stack, Multicell
 
-include("Functions/Cathode.jl")
-include("Functions/Anode.jl")
-include("Functions/Stack.jl")
 
     F,R = 96485.332u"C/mol", 8.314463
 

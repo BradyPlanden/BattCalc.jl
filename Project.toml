@@ -12,6 +12,11 @@ PeriodicTable = "7b2266bf-644c-5ea3-82d8-af4bbd25a884"
 Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
 
 [compat]
+Parameters = "0.12"
+DataStructures = "0.18"
+Measurements = "2"
+PeriodicTable = "1"
+Unitful = "1"
 julia = "1.7"
 
 [extras]

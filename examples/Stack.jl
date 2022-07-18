@@ -9,6 +9,20 @@ Module = MultiCell(Stack, Cell, N=200, M=20)
 
 
 
+<<<<<<< HEAD
+=======
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>> main
 #Intercalation
 @with_kw mutable struct Cathode
     Porousity = (0.61±0.0122)u"cm^3/cm^3"
