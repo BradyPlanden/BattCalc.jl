@@ -2,9 +2,11 @@ module BattCalc
 
 
 using Unitful, Parameters, LinearAlgebra, Measurements, PeriodicTable
-export Pouch, Anode, Cathode, Separator, Params
-export Electrode, Parser, F, R, FormulaDict, SpecificCap, NomVoltage
-export Stack, Multicell
+export Pouch!, Anode, Cathode, Separator, Params
+export Electrode!, Parser, F, R, FormulaDict, SpecificCap, NomVoltage
+export MultiCell, PackStruct
+
+include("BattCalcTypes.jl")
 
 
     F,R = 96485.332u"C/mol", 8.314463
@@ -19,40 +21,6 @@ export Stack, Multicell
                     "LFP" => (3.37±0.01)u"V", "NCM622" => (3.85±0.01)u"V", "Graphite" => (0.17±0.01)u"V", "Li" => (0±0.0)u"V")
 
 
-
-    @with_kw mutable struct Cathode
-        Porousity = (0.61±0.0122)u"cm^3/cm^3"
-        CoatingThickness = (45.0±0.9)u"μm"
-        CollectorThickness = (13±0.26)u"μm"
-        Area = (85±1.7)u"cm^2"
-    end
-
-    @with_kw mutable struct Anode
-        Porousity = (0.2±0.004)u"cm^3/cm^3"
-        CoatingThickness = (65±2)u"μm"
-        CollectorThickness = (8±0.16)u"μm"
-        Area = (85±1.7)u"cm^2"
-    end
-
-    @with_kw mutable struct Separator
-        Porousity = (0.61±0.0122)u"cm^3/cm^3"
-        Thickness = (14.0±0.28)u"μm"
-        Area = (85±1.7)u"cm^2"
-        Loading = (1.01±0.0202)u"mg/cm^3"
-    end
-
-
-    @with_kw mutable struct Params
-        Neg::Anode
-        Pos::Cathode
-        Sep::Separator
-    end
-
-    @with_kw mutable struct Pouch
-        Energy = (0±0)u"hr*W"
-        Pos::Cathode
-        Sep::Separator
-    end
 
 
     function Parser(List::String)
@@ -73,40 +41,38 @@ export Stack, Multicell
 
 
     #kwargs: Number of Layers, area, composition, capacity, etc.
-    function Pouch(Stack, CathodeName::String,AnodeName::String, CathodeFormula::String, AnodeFormula::String, Calc::String, StorageMech::String, Layers::Int)
+    function Pouch!(Cell, CathodeName::String,AnodeName::String, CathodeFormula::String, AnodeFormula::String, Calc::String, StorageMech::String, Layers::Int)
         
         #Cathode
         chars, nums = Parser(CathodeFormula)
         ElectrodeDef = "Pos"
-        PosArealCap, PosLoading, PosMass, PosEnergy, PosCapacity = Electrode(chars, nums, CathodeName, Calc, ElectrodeDef, Stack)
+        Electrode!(chars, nums, CathodeName, Calc, ElectrodeDef, Cell)
 
         #Anode 
         chars, nums = Parser(AnodeFormula)
         ElectrodeDef = "Neg"
-        NegArealCap, NegLoading, NegMass, NegEnergy, NegCapacity = Electrode(chars, nums, AnodeName, Calc, ElectrodeDef, Stack)
+        Electrode!(chars, nums, AnodeName, Calc, ElectrodeDef, Cell)
 
 
-        #Full Stack
-        TotalMass = (PosMass+NegMass+2*uconvert(u"g",(Stack.Sep.Area*Stack.Sep.Loading*Stack.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g"))*Layers
+        #Full Cell
+        Cell.Mass = (Cell.Pos.Mass+Cell.Neg.Mass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g"))*Layers
 
             if StorageMech == "Intercalation"
-                TotaCapacity = min(PosCapacity,NegCapacity)*Layers
+                Cell.Capacity = min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers
             elseif StorageMech == "Deposition"
-                TotaCapacity = PosCapacity*Layers
+                Cell.Capacity = Cell.Pos.Capacity*Layers
             end
 
-        TotalEnergy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*TotaCapacity/1000u"mA/A")
-        TotalEnergyDensity = (2*TotalEnergy/TotalMass)*(1000u"g/kg")
-        TotalThickness= (2*Stack.Pos.CoatingThickness+Stack.Pos.CollectorThickness+2*Stack.Sep.Thickness+2*Stack.Neg.CoatingThickness+Stack.Neg.CollectorThickness)*Layers
-        TotalVolDensity = uconvert(u"W*hr/L",(2*TotalEnergy/(TotalThickness/1e4u"μm/cm"*Stack.Pos.Area)))
-
-        return (PosArealCap, PosLoading, PosMass, PosEnergy, PosCapacity, NegArealCap, NegLoading, NegMass, NegEnergy, NegCapacity, TotalMass, TotaCapacity, TotalEnergy, TotalEnergyDensity, TotalThickness, TotalVolDensity)
+        Cell.Energy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*Cell.Capacity/1000u"mA/A")
+        Cell.Energy_Density = (2*Cell.Energy/Cell.Mass)*(1000u"g/kg")
+        Cell.Thickness= (2*Cell.Pos.CoatingThickness+Cell.Pos.CollectorThickness+2*Cell.Sep.Thickness+2*Cell.Neg.CoatingThickness+Cell.Neg.CollectorThickness)*Layers
+        Cell.VolDensity = uconvert(u"W*hr/L",(2*Cell.Energy/(Cell.Thickness/1e4u"μm/cm"*Cell.Pos.Area)))
 
     end
 
 
 
-    function Electrode(chars, nums, ElectrodeName, Calc, ElectrodeDef, Stack)
+    function Electrode!(chars, nums, ElectrodeName, Calc, ElectrodeDef, Cell)
         """
 
         This function constructs the electrode structure. 
@@ -114,9 +80,9 @@ export Stack, Multicell
         """
 
         if ElectrodeDef == "Pos"
-            Electrode = Stack.Pos
+            Electrode = Cell.Pos
         elseif ElectrodeDef == "Neg"
-            Electrode = Stack.Neg
+            Electrode = Cell.Neg
         end
 
         if ElectrodeName == "Graphite"
@@ -144,50 +110,49 @@ export Stack, Multicell
 
         
         #Calculations
-        Loading = (1-Electrode.Porousity)*(Electrode.CoatingThickness/1e4u"μm/cm")/(ComponentDensity/1e3u"mg/g")#
+        Electrode.Loading = (1-Electrode.Porousity)*(Electrode.CoatingThickness/1e4u"μm/cm")/(ComponentDensity/1e3u"mg/g")#
 
             if ElectrodeDef == "Pos"
-                Mass = uconvert(u"g",(2*Electrode.Area*Loading)/1e3u"mg/g"+(elements["aluminium"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area)
+                Electrode.Mass = uconvert(u"g",(2*Electrode.Area*Electrode.Loading)/1e3u"mg/g"+(elements["aluminium"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area)
             else 
-                Mass = uconvert(u"g",(2*Electrode.Area*Loading)/1e3u"mg/g"+(elements["copper"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area)
+                Electrode.Mass = uconvert(u"g",(2*Electrode.Area*Electrode.Loading)/1e3u"mg/g"+(elements["copper"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area)
             end
 
             if Calc == "Theor"
-                ArealCap = (Loading*uconvert(u"mA*hr/g",(elements[FormulaDict[chars[1]]].shells[end]*F/MolecularMass)))/1000u"mg/g"
+                Electrode.ArealCap = (Electrode.Loading*uconvert(u"mA*hr/g",(elements[FormulaDict[chars[1]]].shells[end]*F/MolecularMass)))/1000u"mg/g"
             else
-                ArealCap = (Loading*SpecificCap[ElectrodeName])/1000u"mg/g"
+                Electrode.ArealCap = (Electrode.Loading*SpecificCap[ElectrodeName])/1000u"mg/g"
             end
 
-        Capacity = Electrode.Area*ArealCap
-        Energy = uconvert(u"W*hr",(Capacity/(1000u"mA/A")*NomVoltage[ElectrodeName]))
-
-        return ArealCap, Loading, Mass, Energy, Capacity
+        Electrode.Capacity = Electrode.Area*Electrode.ArealCap
+        Electrode.Energy = uconvert(u"W*hr",(Electrode.Capacity/(1000u"mA/A")*NomVoltage[ElectrodeName]))
 
     end
 
 
-    function Multicell(Pouch, N, M, Pₐ)
+    function MultiCell(Pack, N, M, Pₐ)
             # Energy_Density
             # NonActive_Mass
 
             α = N*M
-            Qₚ = Pouch.Capacity*M
-            Vₚ_Max = Pouch.Voltage_Max*N
-            Vₚ_Min = Pouch.Voltage_Min*N
-            Vₚ_Nom = Pouch.Voltage_Nom*N
+            Pack.Capacity = Pack.Cell.Capacity*M
+            Pack.Vₚ_Max = Pack.Cell.Voltage_Max*N
+            Pack.Vₚ_Min = Pack.Cell.Voltage_Min*N
+            Pack.Vₚ_Nom = Pack.Cell.Voltage_Nom*N
+            Pack.Iₚ = uconvert(u"A",Pₐ/Pack.Vₚ_Nom)
 
 
-            Mₚ = Pouch.Mass*α
-            Vlₚ = Pouch.Volume*α
+            Pack.Mass = Pack.Cell.Mass*α
+            Pack.Volume = Pack.Cell.Volume*α
 
-            Ωₛ = Pouch.Ω*N+(167e-5*N*2)
-            Ωₚ = 1/(1/Ωₛ*M)
-            Ẇₕ = (Iₚ^2)*Ωₚ
+            Ωₛ = Pack.Cell.Ω*N+(167e-5u"Ω"*N*2)
+            Pack.Ω = 1/(1/Ωₛ*M)
+            Pack.Ẇₕ = uconvert(u"kW",(Pack.Iₚ^2)*Pack.Ω)
 
-            ηₚ = (Pₐ-Ẇₕ)/(Pₐ)
-            Eₚ = Pouch.Energy*α
-            Usable_Eₚ = Eₚ*ηₚ
-            Usable_Eₖ = Usable_Eₚ/Mₚ
+            Pack.η = uconvert(NoUnits,(Pₐ-Pack.Ẇₕ)/(Pₐ))
+            Pack.Energy = uconvert(u"kW*hr",Pack.Cell.Energy*α)
+            Pack.Usable_Eₚ = uconvert(u"kW*hr",Pack.Energy*Pack.η)
+            Usable_Eₖ = Pack.Usable_Eₚ/Pack.Mass
     end
 
 
