@@ -14,11 +14,11 @@ include("BattCalcTypes.jl")
     FormulaDict = Dict("Li"=>"lithium","Co"=>"cobalt", "O"=>"oxygen","Fe"=>"iron","Ni"=>"nickel","P"=>"phosphate",
                     "Mn"=>"manganese","Al"=>"aluminium","Si"=>"silicon","C" =>"carbon")
 
-    SpecificCap = Dict("LCO"=> (175± 3.44)u"mA*hr/g", "NCM811" => (220±4.1)u"mA*hr/g", "NCM532" => (184±3.68)u"mA*hr/g", 
-                    "LFP" => (157±3.14)u"mA*hr/g", "NCM622" => (190±4)u"mA*hr/g", "Graphite" => (285±4)u"mA*hr/g", "Li" => (3680±10)u"mA*hr/g")
+    SpecificCap = Dict("LCO"=> (175± 3.44)u"mA*hr/g", "NCM811" => (220±0.0)u"mA*hr/g", "NCM532" => (184±3.68)u"mA*hr/g", 
+                    "LFP" => (157±3.14)u"mA*hr/g", "NCM622" => (190±4)u"mA*hr/g", "Graphite" => (285±0)u"mA*hr/g", "Li" => (3680±10)u"mA*hr/g")
 
-    NomVoltage = Dict("LCO"=> (3.98±0.01)u"V", "NCM811" => (3.84±0.01)u"V", "NCM532" => (3.87±0.01)u"V", 
-                    "LFP" => (3.37±0.01)u"V", "NCM622" => (3.85±0.01)u"V", "Graphite" => (0.17±0.01)u"V", "Li" => (0±0.0)u"V")
+    NomVoltage = Dict("LCO"=> (3.98±0.01)u"V", "NCM811" => (3.84±0.0)u"V", "NCM532" => (3.87±0.01)u"V", 
+                    "LFP" => (3.37±0.01)u"V", "NCM622" => (3.85±0.01)u"V", "Graphite" => (0.17±0.0)u"V", "Li" => (0±0.0)u"V")
 
 
 
@@ -55,16 +55,16 @@ include("BattCalcTypes.jl")
 
 
         #Full Cell
-        Cell.Mass = (Cell.Pos.Mass+Cell.Neg.Mass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g"))*Layers
+        Cell.Mass = (2*Cell.Pos.AMMass+2*Cell.Neg.AMMass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g")+Cell.Pos.CCMass+Cell.Neg.CCMass)*Layers
 
             if StorageMech == "Intercalation"
-                Cell.Capacity = min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers
+                Cell.Capacity = 2*min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers #Scale capacities from double-coated collectors
             elseif StorageMech == "Deposition"
-                Cell.Capacity = Cell.Pos.Capacity*Layers
+                Cell.Capacity = 2*Cell.Pos.Capacity*Layers
             end
 
         Cell.Energy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*Cell.Capacity/1000u"mA/A")
-        Cell.Energy_Density = (2*Cell.Energy/Cell.Mass)*(1000u"g/kg")
+        Cell.Energy_Density = uconvert(u"W*hr/kg",(Cell.Energy/Cell.Mass)*(1000u"g/kg"))
         Cell.Thickness= (2*Cell.Pos.CoatingThickness+Cell.Pos.CollectorThickness+2*Cell.Sep.Thickness+2*Cell.Neg.CoatingThickness+Cell.Neg.CollectorThickness)*Layers
         Cell.VolDensity = uconvert(u"W*hr/L",(2*Cell.Energy/(Cell.Thickness/1e4u"μm/cm"*Cell.Pos.Area)))
 
@@ -113,9 +113,13 @@ include("BattCalcTypes.jl")
         Electrode.Loading = (1-Electrode.Porousity)*(Electrode.CoatingThickness/1e4u"μm/cm")/(ComponentDensity/1e3u"mg/g")#
 
             if ElectrodeDef == "Pos"
-                Electrode.Mass = uconvert(u"g",(2*Electrode.Area*Electrode.Loading)/1e3u"mg/g"+(elements["aluminium"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area)
+                Electrode.CCMass = (elements["aluminium"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area
+                Electrode.AMMass = uconvert(u"g",(Electrode.Area*Electrode.Loading)/1e3u"mg/g")
+                Electrode.TotalMass = Electrode.CCMass+Electrode.AMMass
             else 
-                Electrode.Mass = uconvert(u"g",(2*Electrode.Area*Electrode.Loading)/1e3u"mg/g"+(elements["copper"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area)
+                Electrode.CCMass = (elements["copper"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area
+                Electrode.AMMass = uconvert(u"g",(Electrode.Area*Electrode.Loading)/1e3u"mg/g")
+                Electrode.TotalMass = Electrode.CCMass+Electrode.AMMass
             end
 
             if Calc == "Theor"
@@ -151,6 +155,7 @@ include("BattCalcTypes.jl")
 
             Pack.η = uconvert(NoUnits,(Pₐ-Pack.Ẇₕ)/(Pₐ))
             Pack.Energy = uconvert(u"kW*hr",Pack.Cell.Energy*α)
+            Pack.Energy_Density = uconvert(u"W*hr/kg",Pack.Energy/Pack.Mass)
             Pack.Usable_Eₚ = uconvert(u"kW*hr",Pack.Energy*Pack.η)
             Usable_Eₖ = Pack.Usable_Eₚ/Pack.Mass
     end

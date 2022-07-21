@@ -6,10 +6,12 @@ using Parameters
     CollectorThickness = (13±0.26)u"μm"
     Area = (85±1.7)u"cm^2"
     Loading = (0.0±0.0)u"mg/cm^2"
-    Mass = (0.0±0.0)u"g"
+    TotalMass = (0.0±0.0)u"g"
     ArealCap = (0.0±0.0)u"mA*hr/cm^2"
     Capacity =  (0.0±0.0)u"mA*hr"
     Energy = (0.0±0.0)u"W*hr"
+    CCMass = (0.0±0.0)u"g"
+    AMMass = (0.0±0.0)u"g"
 end
 
 @with_kw mutable struct Anode
@@ -18,10 +20,12 @@ end
     CollectorThickness = (8±0.16)u"μm"
     Area = (85±1.7)u"cm^2"
     Loading = (0.0±0.0)u"mg/cm^2"
-    Mass = (0.0±0.0)u"g"
+    TotalMass = (0.0±0.0)u"g"
     ArealCap = (0.0±0.0)u"mA*hr/cm^2"
     Capacity =  (0.0±0.0)u"mA*hr"
     Energy = (0.0±0.0)u"W*hr"
+    CCMass = (0.0±0.0)u"g"
+    AMMass = (0.0±0.0)u"g"
 end
 
 @with_kw mutable struct Separator
@@ -37,12 +41,12 @@ end
     Sep::Separator
     Layers::Int64 = 20
     Energy = (0±0)u"hr*W"
-    Voltage_Max = (4.2±0.05)u"V"
-    Voltage_Min = (3.0±0.05)u"V"
-    Voltage_Nom = (3.8±0.05)u"V"
-    Capacity = (5±0.05)u"A*hr"
-    Ω = (0.005±0.001)u"Ω"
-    Mass = (50±0.2)u"g"
+    Voltage_Max = (4.2±0.0)u"V"
+    Voltage_Min = (3.0±0.0)u"V"
+    Voltage_Nom = (3.8±0.0)u"V"
+    Capacity = (5±0.00)u"A*hr"
+    Ω = (0.005±0.00)u"Ω"
+    Mass = (50±0.0)u"g"
     Volume = (0±0)u"L"
     Energy_Density = (0±0)u"W*hr/kg"
     Thickness = (0±0)u"W*hr/kg"
@@ -54,12 +58,12 @@ end
     Series::Int64 = 10
     Parallel::Int64 = 5
     Energy = (0±0)u"hr*W"
-    Vₚ_Max = (0.0±0.05)u"V"
-    Vₚ_Min = (0.0±0.05)u"V"
-    Vₚ_Nom = (0.0±0.05)u"V"
-    Capacity = (0.0±0.05)u"A*hr"
-    Ω = (0.00±0.001)u"Ω"
-    Mass = (0±0.2)u"g"
+    Vₚ_Max = (0.0±0.0)u"V"
+    Vₚ_Min = (0.0±0.0)u"V"
+    Vₚ_Nom = (0.0±0.00)u"V"
+    Capacity = (0.0±0.00)u"A*hr"
+    Ω = (0.00±0.000)u"Ω"
+    Mass = (0±0.0)u"g"
     Volume = (0±0)u"L"
     Energy_Density = (0±0)u"W*hr/kg"
     Thickness = (0±0)u"W*hr/kg"
