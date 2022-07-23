@@ -4,7 +4,7 @@ module BattCalc
 using Unitful, Parameters, LinearAlgebra, Measurements, PeriodicTable
 export Pouch!, Anode, Cathode, Separator, Params
 export Electrode!, Parser, F, R, FormulaDict, SpecificCap, NomVoltage
-export MultiCell, PackStruct
+export MultiCell, PackStruct, Impedance
 
 include("BattCalcTypes.jl")
 
@@ -158,6 +158,16 @@ include("BattCalcTypes.jl")
             Pack.Energy_Density = uconvert(u"W*hr/kg",Pack.Energy/Pack.Mass)
             Pack.Usable_Eₚ = uconvert(u"kW*hr",Pack.Energy*Pack.η)
             Usable_Eₖ = Pack.Usable_Eₚ/Pack.Mass
+    end
+
+
+    function Impedance(L,n,ρ,r,Rᵪₐ)
+
+        Rion = ρ/(π*r^2)*(L/n)
+
+        Rᵪ =  Rᵪₐ/(2*π*L)
+
+        return Rᵢ/3, Rᵢ/3+Rᵪ
     end
 
 
