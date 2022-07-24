@@ -45,12 +45,14 @@ end
     Voltage_Min = (3.0±0.0)u"V"
     Voltage_Nom = (3.8±0.0)u"V"
     Capacity = (5±0.00)u"A*hr"
-    Ω = (0.005±0.00)u"Ω"
+    Ωᵢ = (0.005±0.00)u"Ω"
+    Ωᵪ = (0.005±0.00)u"Ω"
     Mass = (50±0.0)u"g"
     Volume = (0±0)u"L"
     Energy_Density = (0±0)u"W*hr/kg"
     Thickness = (0±0)u"W*hr/kg"
     VolDensity = (0±0)u"W*hr/L"
+    Area = (0±0)u"cm^2"
 end
 
 @with_kw mutable struct PackStruct

@@ -63,6 +63,7 @@ include("BattCalcTypes.jl")
                 Cell.Capacity = 2*Cell.Pos.Capacity*Layers
             end
 
+        Cell.Area = Cell.Pos.Area * Layers
         Cell.Energy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*Cell.Capacity/1000u"mA/A")
         Cell.Energy_Density = uconvert(u"W*hr/kg",(Cell.Energy/Cell.Mass)*(1000u"g/kg"))
         Cell.Thickness= (2*Cell.Pos.CoatingThickness+Cell.Pos.CollectorThickness+2*Cell.Sep.Thickness+2*Cell.Neg.CoatingThickness+Cell.Neg.CollectorThickness)*Layers
@@ -149,7 +150,7 @@ include("BattCalcTypes.jl")
             Pack.Mass = Pack.Cell.Mass*α
             Pack.Volume = Pack.Cell.Volume*α
 
-            Ωₛ = Pack.Cell.Ω*N+(167e-5u"Ω"*N*2)
+            Ωₛ = Pack.Cell.Ωᵪ*N+(167e-5u"Ω"*N*2)
             Pack.Ω = 1/(1/Ωₛ*M)
             Pack.Ẇₕ = uconvert(u"kW",(Pack.Iₚ^2)*Pack.Ω)
 
@@ -161,13 +162,17 @@ include("BattCalcTypes.jl")
     end
 
 
-    function Impedance(L,n,ρ,r,Rᵪₐ)
+    function Impedance(Pack,ρ,Rᵪₐ)
+        #ρ = electrolyte resistance (Ω⋅cm)
+        #r = pore radius (cm)
+        #Rᵪₐ = area specific charge transger resistance (Ω⋅cm²)
 
-        Rion = ρ/(π*r^2)*(L/n)
+        @show r = ((1-Pack.Cell.Pos.Porousity)*Pack.Cell.Pos.Area/π)^(1/2)
+        @show Pack.Cell.Ωᵢ = uconvert(u"Ω",ρ/(π*r^2)*(Pack.Cell.Pos.CoatingThickness/1e4u"μm/cm"))
+        @show Pack.Cell.Ωᵪ = uconvert(u"Ω",(Rᵪₐ/(2*π*r*Pack.Cell.Pos.CoatingThickness)))
 
-        Rᵪ =  Rᵪₐ/(2*π*L)
-
-        return Rᵢ/3, Rᵢ/3+Rᵪ
+        @show Rp = uconvert(u"Ω",7.4*0.0065u"cm"/(0.42*0.94u"cm^2"*8.9u"mS/cm"))
+        #@show Rp = uconvert(u"Ω",7.4*Pack.Cell.Pos.CoatingThickness/1e4u"μm/cm"/(Pack.Cell.Pos.Porousity*Pack.Cell.Pos.Area*0.0089u"mS/cm"))
     end
 
 
