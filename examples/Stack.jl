@@ -18,31 +18,37 @@ Pack.Cell.Sep.Area = (85±0.0)u"cm^2"
 Pack.Cell.Sep.Loading = (1.01±0.0)u"mg/cm^3"
 
 function plotsf()
-    Rng = 5:2.5:85
-    Thickness = (ones(size(Rng)))*u"μm"
-    Density =  (ones(size(Rng)).±0.00)*u"W*hr/kg"
+    Rng = 0.01:0.01:0.99
+    Thickness = (ones(length(Rng)^2,size(Rng,2)))*u"μm"
+    Density =  (ones(length(Rng)^2,size(Rng,2)).±0.00)*u"W*hr/kg"
+    Impedance_lp =  (ones(length(Rng)^2,size(Rng,2)).±0.00)*u"Ω"
+    Porousity =  (ones(length(Rng)^2,size(Rng,2)).±0.00)*u"cm^3/cm^3"
     k=1
     for i ∈ Rng
-        Pack.Cell.Pos.CoatingThickness = (i±0.02*i)u"μm"
-        Pack.Cell.Neg.CoatingThickness = (i±0.02*i)u"μm"
-        Pouch!(Pack.Cell,"NCM811","Graphite","1Li:0.8Ni:0.1Co:0.1Mn:2O","1.0Li6.0C", "Exper", "Intercalation", Stacks)
-        MultiCell(Pack,100,2,40u"kW")
-        Thickness[k] =  Measurements.value(Pack.Cell.Pos.CoatingThickness)
-        Density[k] = Pack.Energy_Density
-        k+=1
+        for j ∈ Rng
+            Pack.Cell.Pos.Porousity = (i±0.02*i)u"cm^3/cm^3"
+            Pack.Cell.Neg.Porousity = (j±0.02*j)u"cm^3/cm^3"
+            Pouch!(Pack.Cell,"NCM811","Graphite","1Li:0.8Ni:0.1Co:0.1Mn:2O","1.0Li6.0C", "Exper", "Intercalation", Stacks)
+            MultiCell(Pack,100,2,40u"kW")
+            Porousity[k] =  Measurements.value(Pack.Cell.Pos.Porousity)
+            #Thickness[k] =  Measurements.value(Pack.Cell.Pos.CoatingThickness)
+            Density[k] = Pack.Energy_Density
+            Impedance_lp[k] = Pack.Cell.Ω
+            k+=1
+        end
     end
-    return Thickness, Density
+    return Thickness, Density, Impedance_lp, Porousity
 end
 
-Thickness, Density = plotsf()
+Thickness, Density, Impedance_lp, Porousity = plotsf()
 
 # nominal, ± σ:
 nominal = Measurements.value.(Density)
 nom_plus_std = nominal .- Measurements.uncertainty.(Density)
 nom_minus_std = nominal .+ Measurements.uncertainty.(Density)
 
-plot(Thickness, nom_minus_std, fillrange=nom_plus_std, fillalpha=0.2, linealpha = 0.3, legend = false,size=(1280,720))
-plot!(Thickness,nominal)
+plot(Porousity, nom_minus_std, fillrange=nom_plus_std, fillalpha=0.2, linealpha = 0.3, legend = false,size=(1280,720))
+plot!(Porousity,nominal)
 
 
 

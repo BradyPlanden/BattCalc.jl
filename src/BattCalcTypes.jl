@@ -12,6 +12,7 @@ using Parameters
     Energy = (0.0±0.0)u"W*hr"
     CCMass = (0.0±0.0)u"g"
     AMMass = (0.0±0.0)u"g"
+    Ω = (0.0±0.0)u"Ω"
 end
 
 @with_kw mutable struct Anode
@@ -26,6 +27,7 @@ end
     Energy = (0.0±0.0)u"W*hr"
     CCMass = (0.0±0.0)u"g"
     AMMass = (0.0±0.0)u"g"
+    Ω = (0.0±0.0)u"Ω"
 end
 
 @with_kw mutable struct Separator
@@ -45,8 +47,7 @@ end
     Voltage_Min = (3.0±0.0)u"V"
     Voltage_Nom = (3.8±0.0)u"V"
     Capacity = (5±0.00)u"A*hr"
-    Ωᵢ = (0.005±0.00)u"Ω"
-    Ωᵪ = (0.005±0.00)u"Ω"
+    Ω = (0.005±0.00)u"Ω"
     Mass = (50±0.0)u"g"
     Volume = (0±0)u"L"
     Energy_Density = (0±0)u"W*hr/kg"
