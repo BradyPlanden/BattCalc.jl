@@ -164,18 +164,8 @@ module BattCalc
 
 
     function Impedance(Electrode)
-        #ρ = electrolyte resistance (Ω⋅cm)
-        #r = pore radius (cm)
-        #Rᵪₐ = area specific charge transger resistance (Ω⋅cm²)
 
-        #@show r = ((1-Electrode.Porousity)*Electrode.Area/π)^(1/2)
-        #@show Pack.Cell.Ωᵢ = uconvert(u"Ω",ρ/(π*r^2)*(Electrode.CoatingThickness/1e4u"μm/cm"))
-        #@show Pack.Cell.Ωᵪ = uconvert(u"Ω",(Rᵪₐ/(2*π*r*Electrode.CoatingThickness)))
-
-        #@show Rct = 620u"Ω*cm^2"*exp(-1.091*(ustrip(Electrode.Loading/1000u"mg/g"/(Electrode.CoatingThickness/1e4u"μm/cm"))))
         Rp = uconvert(u"Ω",7.4*(Electrode.CoatingThickness/1e4u"μm/cm")/((Electrode.Porousity)*Electrode.Area*0.0089u"S/cm"))
-        #Rp = uconvert(u"Ω",7.4*(Electrode.CoatingThickness/1e4u"μm/cm")/(0.42*0.94u"cm^2"*8.9u"mS/cm"))
-        #Rct = (17518u"Ω*cm^2"*ustrip(Electrode.CoatingThickness)^(-1.8813))/Electrode.Area
         Rct = (119.98u"Ω*cm^2"*ustrip(Electrode.CoatingThickness)^(-0.775))/Electrode.Area
 
         if Rct/Rp <= 0.2 #Transport Limited
@@ -185,34 +175,10 @@ module BattCalc
         else
             L = sqrt(Rct/Rp)*coth(1/sqrt(Rct/Rp))*Rp
         end
+
         return L
+
     end
-
-
-
-    #Data:
-    #Molecular 
-    #Areal Capacity
-    #Tortuosity
-    #Lithium Concentration (max / min)
-    #Loading 
-    #Area
-    #Specific Resistivity
-
-
-    #To Do:
-    #Energy Density (Nom. Voltage * Capcity / Mass)
-    #Cathode Resistivity (Specific Capacity * Area)
-    #Total Mass (Specific Loading * Area)
-    #Total Energy (Nom. Voltage * Capacity)
-    #Volumetric Energy Density (Nom. Voltage * Capacity / Volume)
-    #Total Volume (Target Capacity / Areal Capacity)
-    #Predicted Cycle Life (Coulombic efficiency until SOH target)
-    #Max Power (Polarisation limit? Specific Resistance of Cathode)
-    #Power Density (Power / Mass)
-
-    #1Li:1Co:2.0O
-    #1Li:0.6Ni:0.2Co:0.2Mn:2O
 
         
 end #module
