@@ -48,12 +48,16 @@ end
     Voltage_Nom = (3.8±0.0)u"V"
     Capacity = (5±0.00)u"A*hr"
     Ω = (0.005±0.00)u"Ω"
+    EChemMass = (50±0.0)u"g"
     Mass = (50±0.0)u"g"
     Volume = (0±0)u"L"
     Energy_Density = (0±0)u"W*hr/kg"
     Thickness = (0±0)u"W*hr/kg"
     VolDensity = (0±0)u"W*hr/L"
     Area = (0±0)u"cm^2"
+    Width = (4±0.08)u"cm"
+    Length = (12.5±0.25)u"cm"
+    CasingThickness = (0.021±0.00042)u"cm"
 end
 
 @with_kw mutable struct PackStruct
