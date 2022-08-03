@@ -5,10 +5,9 @@ Stacks = 18
 
 Storage = "Intercalation" 
 #Storage = "Deposition"
+
 Pack.Cell.Length = (12.5±0.25)u"cm"
 Pack.Cell.Width = (4±0.08)u"cm"
-
-
 Pack.Cell.Pos.Porousity = (0.335±0.0122)u"cm^3/cm^3"
 Pack.Cell.Pos.CoatingThickness = (45.0±0.9)u"μm"
 
