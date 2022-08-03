@@ -4,7 +4,7 @@ module BattCalc
     using Unitful, Parameters, LinearAlgebra, Measurements, PeriodicTable
     export Pouch!, Anode, Cathode, Separator, Params
     export Electrode!, Parser, F, R, FormulaDict, SpecificCap, NomVoltage
-    export MultiCell, PackStruct, Impedance
+    export MultiCell, PackStruct, Impedance, Electrolyte_
 
     include("BattCalcTypes.jl")
 
@@ -15,7 +15,7 @@ module BattCalc
                     "Mn"=>"manganese","Al"=>"aluminium","Si"=>"silicon","C" =>"carbon")
 
     SpecificCap = Dict("LCO"=> (175± 3.5)u"mA*hr/g", "NCM811" => (200±4.2)u"mA*hr/g", "NCM532" => (184±3.68)u"mA*hr/g", 
-                    "LFP" => (157±3.14)u"mA*hr/g", "NCM622" => (190±4)u"mA*hr/g", "Graphite" => (255±5.1)u"mA*hr/g", "Li" => (3680±73.6)u"mA*hr/g")
+                    "LFP" => (157±3.14)u"mA*hr/g", "NCM622" => (190±4)u"mA*hr/g", "Graphite" => (265±5.1)u"mA*hr/g", "Li" => (3680±73.6)u"mA*hr/g")
 
     NomVoltage = Dict("LCO"=> (3.98±0.01)u"V", "NCM811" => (3.84±0.01)u"V", "NCM532" => (3.87±0.01)u"V", 
                     "LFP" => (3.37±0.01)u"V", "NCM622" => (3.85±0.01)u"V", "Graphite" => (0.17±0.01)u"V", "Li" => (0±0.0)u"V")
@@ -120,22 +120,29 @@ module BattCalc
         ElectrodeDef = "Neg"
         Electrode!(chars, nums, AnodeName, Calc, ElectrodeDef, Cell)
 
+        #Cell Capacity
+        if StorageMech == "Intercalation"
+            Cell.Capacity = 2*min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers #Scale capacities from double-coated collectors
+        elseif StorageMech == "Deposition"
+            Cell.Capacity = 2*Cell.Pos.Capacity*Layers
+        end
+
         #Separator
         Cell.Sep.Area = Cell.Pos.Area * Layers
 
+        #Electrolyte
+        Cell.Electrolyte.ρₑ = 0.091u"(L*g)/(mol*cm^3)"*Cell.Electrolyte.cₑ+1.1u"g/cm^3" # Linear Correlation to Salt Concentration
+        Cell.Electrolyte.Mass = Cell.Electrolyte.VolumeRatio*Cell.Capacity/1000u"mA*hr/A*hr"
 
         #Full Cell
         Cell.Thickness = uconvert(u"mm",(2*Cell.Pos.CoatingThickness+Cell.Pos.CollectorThickness+2*Cell.Sep.Thickness+2*Cell.Neg.CoatingThickness+Cell.Neg.CollectorThickness)*Layers+2*Cell.CasingThickness)
-        Cell.EChemMass = (2*Cell.Pos.AMMass+2*Cell.Neg.AMMass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g")+Cell.Pos.CCMass+Cell.Neg.CCMass)*Layers
-        Cell.Mass = Cell.EChemMass + 2 * (Cell.Pos.Area + Cell.Thickness*(Cell.Length + Cell.Width))* Cell.CasingThickness * elements["aluminium"].density*1000u"mg/g" + (Cell.CasingThickness*(1u"cm^2")*elements["aluminium"].density*1000u"mg/g")+ (Cell.CasingThickness*(1u"cm^2")*elements["copper"].density*1000u"mg/g")
-
-            if StorageMech == "Intercalation"
-                Cell.Capacity = 2*min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers #Scale capacities from double-coated collectors
-            elseif StorageMech == "Deposition"
-                Cell.Capacity = 2*Cell.Pos.Capacity*Layers
-            end
-        
         Cell.Area = Cell.Pos.Area * Layers
+        
+        Negative_Tab = (Cell.CasingThickness*(1u"cm^2")*elements["copper"].density*1000u"mg/g")
+        Positive_Tab = (Cell.CasingThickness*(1u"cm^2")*elements["aluminium"].density*1000u"mg/g")
+        Cell.EChemMass = (2*Cell.Pos.AMMass+2*Cell.Neg.AMMass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g")+Cell.Pos.CCMass+Cell.Neg.CCMass)*Layers
+        Cell.Mass = Cell.EChemMass + Negative_Tab + Positive_Tab + Cell.Electrolyte.Mass + 2 * (Cell.Pos.Area + Cell.Thickness*(Cell.Length + Cell.Width))* Cell.CasingThickness * elements["aluminium"].density*1000u"mg/g"
+
         Cell.Energy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*Cell.Capacity/1000u"mA/A")
         Cell.Energy_Density = uconvert(u"W*hr/kg",(Cell.Energy/Cell.Mass)*(1000u"g/kg"))
         Cell.VolDensity = uconvert(u"W*hr/L",(Cell.Energy/(Cell.Thickness/1e4u"μm/cm"*Cell.Pos.Area)))
