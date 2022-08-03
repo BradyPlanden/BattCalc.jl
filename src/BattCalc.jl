@@ -14,11 +14,13 @@ module BattCalc
     FormulaDict = Dict("Li"=>"lithium","Co"=>"cobalt", "O"=>"oxygen","Fe"=>"iron","Ni"=>"nickel","P"=>"phosphate",
                     "Mn"=>"manganese","Al"=>"aluminium","Si"=>"silicon","C" =>"carbon")
 
-    SpecificCap = Dict("LCO"=> (175± 3.44)u"mA*hr/g", "NCM811" => (220±0.0)u"mA*hr/g", "NCM532" => (184±3.68)u"mA*hr/g", 
-                    "LFP" => (157±3.14)u"mA*hr/g", "NCM622" => (190±4)u"mA*hr/g", "Graphite" => (285±0)u"mA*hr/g", "Li" => (3680±10)u"mA*hr/g")
+    SpecificCap = Dict("LCO"=> (175± 3.5)u"mA*hr/g", "NCM811" => (200±4.2)u"mA*hr/g", "NCM532" => (184±3.68)u"mA*hr/g", 
+                    "LFP" => (157±3.14)u"mA*hr/g", "NCM622" => (190±4)u"mA*hr/g", "Graphite" => (255±5.1)u"mA*hr/g", "Li" => (3680±73.6)u"mA*hr/g")
 
-    NomVoltage = Dict("LCO"=> (3.98±0.01)u"V", "NCM811" => (3.84±0.0)u"V", "NCM532" => (3.87±0.01)u"V", 
-                    "LFP" => (3.37±0.01)u"V", "NCM622" => (3.85±0.01)u"V", "Graphite" => (0.17±0.0)u"V", "Li" => (0±0.0)u"V")
+    NomVoltage = Dict("LCO"=> (3.98±0.01)u"V", "NCM811" => (3.84±0.01)u"V", "NCM532" => (3.87±0.01)u"V", 
+                    "LFP" => (3.37±0.01)u"V", "NCM622" => (3.85±0.01)u"V", "Graphite" => (0.17±0.01)u"V", "Li" => (0±0.0)u"V")
+
+    CrystalDensity = Dict("NCM811"=> (4.95±0.1)u"g/cm^3", "Graphite" => (2.26±0.45)u"g/cm^3")
 
 
 
@@ -40,39 +42,6 @@ module BattCalc
     end
 
 
-    #kwargs: Number of Layers, area, composition, capacity, etc.
-    function Pouch!(Cell, CathodeName::String,AnodeName::String, CathodeFormula::String, AnodeFormula::String, Calc::String, StorageMech::String, Layers::Int)
-        
-        #Cathode
-        chars, nums = Parser(CathodeFormula)
-        ElectrodeDef = "Pos"
-        Electrode!(chars, nums, CathodeName, Calc, ElectrodeDef, Cell)
-
-        #Anode 
-        chars, nums = Parser(AnodeFormula)
-        ElectrodeDef = "Neg"
-        Electrode!(chars, nums, AnodeName, Calc, ElectrodeDef, Cell)
-
-
-        #Full Cell
-        Cell.Mass = (2*Cell.Pos.AMMass+2*Cell.Neg.AMMass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g")+Cell.Pos.CCMass+Cell.Neg.CCMass)*Layers
-
-            if StorageMech == "Intercalation"
-                Cell.Capacity = 2*min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers #Scale capacities from double-coated collectors
-            elseif StorageMech == "Deposition"
-                Cell.Capacity = 2*Cell.Pos.Capacity*Layers
-            end
-
-        Cell.Area = Cell.Pos.Area * Layers
-        Cell.Energy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*Cell.Capacity/1000u"mA/A")
-        Cell.Energy_Density = uconvert(u"W*hr/kg",(Cell.Energy/Cell.Mass)*(1000u"g/kg"))
-        Cell.Thickness= (2*Cell.Pos.CoatingThickness+Cell.Pos.CollectorThickness+2*Cell.Sep.Thickness+2*Cell.Neg.CoatingThickness+Cell.Neg.CollectorThickness)*Layers
-        Cell.VolDensity = uconvert(u"W*hr/L",(2*Cell.Energy/(Cell.Thickness/1e4u"μm/cm"*Cell.Pos.Area)))
-        Cell.Ω = Cell.Pos.Ω/Layers + Cell.Neg.Ω/Layers
-    end
-
-
-
     function Electrode!(chars, nums, ElectrodeName, Calc, ElectrodeDef, Cell)
         """
 
@@ -89,29 +58,31 @@ module BattCalc
         if ElectrodeName == "Graphite"
             nums .= nums./maximum(nums)
         end
-
+        @show nums
+        @show chars
         #Sum Elements
         MolecularMass = 0.0u"g/mol"
-        ComponentDensity = 0.0u"cm^3/g"
+        ComponentDensity = 0.0u"g/cm^3"
 
             if ElectrodeDef == "Pos" || ElectrodeName == "Graphite"
                 for j in 1:length(chars)
                     MolecularMass += ustrip(elements[FormulaDict[chars[j]]].atomic_mass)*(u"g/mol")*nums[j]
-                    if chars[j] != "Li" && chars[j] != "O"
-                        ComponentDensity += nums[j]/(elements[FormulaDict[chars[j]]].density)
-                    end
-                    
+                    #if chars[j] != "Li" && chars[j] != "O"
+                    #    ComponentDensity += nums[j]*(elements[FormulaDict[chars[j]]].density)
+                    #end
                 end
+            Electrode.Loading = (1-Electrode.Porousity)*(Electrode.CoatingThickness/1e4u"μm/cm")*(CrystalDensity[ElectrodeName]*1e3u"mg/g")
             elseif ElectrodeName == "Li"
                 for j in 1:length(chars)
                     MolecularMass += ustrip(elements[FormulaDict[chars[j]]].atomic_mass)*(u"g/mol")*nums[j]
-                    ComponentDensity += nums[j]/(elements[FormulaDict[chars[j]]].density)
+                    ComponentDensity += nums[j]*(elements[FormulaDict[chars[j]]].density)
                 end
+                Electrode.Loading = (1-Electrode.Porousity)*(Electrode.CoatingThickness/1e4u"μm/cm")*(ComponentDensity*1e3u"mg/g")
             end
 
-        
         #Calculations
-        Electrode.Loading = (1-Electrode.Porousity)*(Electrode.CoatingThickness/1e4u"μm/cm")/(ComponentDensity/1e3u"mg/g")#
+        
+        Electrode.Area = Cell.Width*Cell.Length
 
             if ElectrodeDef == "Pos"
                 Electrode.CCMass = (elements["aluminium"].density*1000u"mg/g"*Electrode.CollectorThickness/1e4u"μm/cm")*Electrode.Area
@@ -134,6 +105,43 @@ module BattCalc
         Electrode.Ω = Impedance(Electrode) 
 
     end
+
+
+    #kwargs: Number of Layers, area, composition, capacity, etc.
+    function Pouch!(Cell, CathodeName::String,AnodeName::String, CathodeFormula::String, AnodeFormula::String, Calc::String, StorageMech::String, Layers::Int)
+    
+        #Cathode
+        chars, nums = Parser(CathodeFormula)
+        ElectrodeDef = "Pos"
+        Electrode!(chars, nums, CathodeName, Calc, ElectrodeDef, Cell)
+
+        #Anode 
+        chars, nums = Parser(AnodeFormula)
+        ElectrodeDef = "Neg"
+        Electrode!(chars, nums, AnodeName, Calc, ElectrodeDef, Cell)
+
+        #Separator
+        Cell.Sep.Area = Cell.Pos.Area * Layers
+
+
+        #Full Cell
+        Cell.Thickness = uconvert(u"mm",(2*Cell.Pos.CoatingThickness+Cell.Pos.CollectorThickness+2*Cell.Sep.Thickness+2*Cell.Neg.CoatingThickness+Cell.Neg.CollectorThickness)*Layers+2*Cell.CasingThickness)
+        Cell.EChemMass = (2*Cell.Pos.AMMass+2*Cell.Neg.AMMass+2*uconvert(u"g",(Cell.Sep.Area*Cell.Sep.Loading*Cell.Sep.Thickness/1e4u"μm/cm")/1e3u"mg/g")+Cell.Pos.CCMass+Cell.Neg.CCMass)*Layers
+        Cell.Mass = Cell.EChemMass + 2 * (Cell.Pos.Area + Cell.Thickness*(Cell.Length + Cell.Width))* Cell.CasingThickness * elements["aluminium"].density*1000u"mg/g" + (Cell.CasingThickness*(1u"cm^2")*elements["aluminium"].density*1000u"mg/g")+ (Cell.CasingThickness*(1u"cm^2")*elements["copper"].density*1000u"mg/g")
+
+            if StorageMech == "Intercalation"
+                Cell.Capacity = 2*min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers #Scale capacities from double-coated collectors
+            elseif StorageMech == "Deposition"
+                Cell.Capacity = 2*Cell.Pos.Capacity*Layers
+            end
+        
+        Cell.Area = Cell.Pos.Area * Layers
+        Cell.Energy = uconvert(u"W*hr",(NomVoltage[CathodeName]-NomVoltage[AnodeName])*Cell.Capacity/1000u"mA/A")
+        Cell.Energy_Density = uconvert(u"W*hr/kg",(Cell.Energy/Cell.Mass)*(1000u"g/kg"))
+        Cell.VolDensity = uconvert(u"W*hr/L",(Cell.Energy/(Cell.Thickness/1e4u"μm/cm"*Cell.Pos.Area)))
+        Cell.Ω = Cell.Pos.Ω/Layers + Cell.Neg.Ω/Layers
+    end
+    
 
 
     function MultiCell(Pack, N, M, Pₐ)
