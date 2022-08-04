@@ -58,8 +58,7 @@ module BattCalc
         if ElectrodeName == "Graphite"
             nums .= nums./maximum(nums)
         end
-        @show nums
-        @show chars
+
         #Sum Elements
         MolecularMass = 0.0u"g/mol"
         ComponentDensity = 0.0u"g/cm^3"
@@ -147,6 +146,9 @@ module BattCalc
         Cell.Energy_Density = uconvert(u"W*hr/kg",(Cell.Energy/Cell.Mass)*(1000u"g/kg"))
         Cell.VolDensity = uconvert(u"W*hr/L",(Cell.Energy/(Cell.Thickness/1e4u"μm/cm"*Cell.Pos.Area)))
         Cell.Ω = Cell.Pos.Ω/Layers + Cell.Neg.Ω/Layers
+
+        return nothing
+
     end
     
 
