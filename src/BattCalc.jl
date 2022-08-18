@@ -2,9 +2,9 @@ module BattCalc
 
 
     using Unitful, Parameters, LinearAlgebra, Measurements, PeriodicTable
-    export Pouch!, Anode, Cathode, Separator, Params
+    export Pouch!, Anode, Cathode, Separator, ElectrolyteStruct
     export Electrode!, Parser, F, R, FormulaDict, SpecificCap, NomVoltage
-    export MultiCell, PackStruct, Impedance, Electrolyte_
+    export CellStruct, Module!, ModuleStruct, Pack!, PackStruct, Impedance
 
     include("BattCalcTypes.jl")
 
@@ -101,13 +101,11 @@ module BattCalc
 
         Electrode.Capacity = Electrode.Area*Electrode.ArealCap
         Electrode.Energy = uconvert(u"W*hr",(Electrode.Capacity/(1000u"mA/A")*NomVoltage[ElectrodeName]))
-        Electrode.Ω = Impedance(Electrode) 
+        Electrode.Ω = Impedance(Electrode, Cell.Storage) 
 
     end
 
-
-    #kwargs: Number of Layers, area, composition, capacity, etc.
-    function Pouch!(Cell, CathodeName::String,AnodeName::String, CathodeFormula::String, AnodeFormula::String, Calc::String, StorageMech::String, Layers::Int)
+    function Pouch!(Cell, CathodeName::String,AnodeName::String, CathodeFormula::String, AnodeFormula::String, Calc::String, Layers::Int)
     
         #Cathode
         chars, nums = Parser(CathodeFormula)
@@ -120,9 +118,9 @@ module BattCalc
         Electrode!(chars, nums, AnodeName, Calc, ElectrodeDef, Cell)
 
         #Cell Capacity
-        if StorageMech == "Intercalation"
+        if Cell.Storage == "Intercalation"
             Cell.Capacity = 2*min(Cell.Pos.Capacity,Cell.Neg.Capacity)*Layers #Scale capacities from double-coated collectors
-        elseif StorageMech == "Deposition"
+        elseif Cell.Storage == "Deposition"
             Cell.Capacity = 2*Cell.Pos.Capacity*Layers
         end
 
@@ -150,40 +148,75 @@ module BattCalc
         return nothing
 
     end
-    
 
+    function Module!(Module, N, M, Pₐ)
 
-    function MultiCell(Pack, N, M, Pₐ)
-            # Energy_Density
-            # NonActive_Mass
+            α = N * M
+            Module.Capacity = Module.Cell.Capacity * M
+            Module.Vₚ_Max = Module.Cell.Vₚ_Max * N
+            Module.Vₚ_Min = Module.Cell.Vₚ_Min * N
+            Module.Vₚ_Nom = Module.Cell.Vₚ_Nom * N   
+            Module.Iₚ = uconvert(u"A",Pₐ/Module.Vₚ_Nom)
 
-            α = N*M
-            Pack.Capacity = Pack.Cell.Capacity*M
-            Pack.Vₚ_Max = Pack.Cell.Voltage_Max*N
-            Pack.Vₚ_Min = Pack.Cell.Voltage_Min*N
-            Pack.Vₚ_Nom = Pack.Cell.Voltage_Nom*N
-            Pack.Iₚ = uconvert(u"A",Pₐ/Pack.Vₚ_Nom)
+            Module.Mass = (Module.Cell.Mass * α) + Module.NonActive_Mass
+            Module.Width = Module.Cell.Width * M
+            Module.Length = Module.Cell.Thickness * N
+            Module.Height = Module.Cell.Length
+            Module.Volume = Module.Width * Module.Length * Module.Height
 
+            Ωₛ = Module.Cell.Ω * N + (167e-5u"Ω" * N * 2)
+            Module.Ω = 1 / (1 / Ωₛ * M)
+            Module.Ẇₕ = uconvert(u"kW",(Module.Iₚ^2) * Module.Ω)
 
-            Pack.Mass = Pack.Cell.Mass*α
-            Pack.Volume = Pack.Cell.Volume*α
-
-            Ωₛ = Pack.Cell.Ω*N+(167e-5u"Ω"*N*2)
-            Pack.Ω = 1/(1/Ωₛ*M)
-            Pack.Ẇₕ = uconvert(u"kW",(Pack.Iₚ^2)*Pack.Ω)
-
-            Pack.η = uconvert(NoUnits,(Pₐ-Pack.Ẇₕ)/(Pₐ))
-            Pack.Energy = uconvert(u"kW*hr",Pack.Cell.Energy*α)
-            Pack.Energy_Density = uconvert(u"W*hr/kg",Pack.Energy/Pack.Mass)
-            Pack.Usable_Eₚ = uconvert(u"kW*hr",Pack.Energy*Pack.η)
-            Usable_Eₖ = Pack.Usable_Eₚ/Pack.Mass
+            Module.η = uconvert(NoUnits,(Pₐ-Module.Ẇₕ)/(Pₐ))
+            Module.Energy = uconvert(u"kW*hr",Module.Cell.Energy * α)
+            Module.Energy_Density = uconvert(u"W*hr/kg",Module.Energy/Module.Mass)
+            Module.Usable_Eₚ = uconvert(u"kW*hr",Module.Energy * Module.η)
+            Module.Usable_Density = uconvert(u"W*hr/kg",Module.Usable_Eₚ/Module.Mass)
+            
+            return nothing
     end
 
+    function Pack!(Pack, N, M, Pₐ)
 
-    function Impedance(Electrode)
+        α = N * M
+        Pack.Capacity = Pack.Module.Capacity * M
+        Pack.Vₚ_Max = Pack.Module.Vₚ_Max * N
+        Pack.Vₚ_Min = Pack.Module.Vₚ_Min * N
+        Pack.Vₚ_Nom = Pack.Module.Vₚ_Nom * N
+        Pack.Iₚ = uconvert(u"A",Pₐ/Pack.Vₚ_Nom)
 
-        Rp = uconvert(u"Ω",7.4*(Electrode.CoatingThickness/1e4u"μm/cm")/((Electrode.Porousity)*Electrode.Area*0.0089u"S/cm"))
-        Rct = (119.98u"Ω*cm^2"*ustrip(Electrode.CoatingThickness)^(-0.775))/Electrode.Area
+        Pack.Volume = uconvert(u"L",Pack.Module.Volume * α)
+        Pack.Height = Pack.Module.Height
+        Pack.Length = Pack.Module.Width * N
+        Pack.Width = Pack.Module.Length
+        Pack.CasingVolume = uconvert(u"L",(Pack.Height+Pack.CasingThickness*2)*(Pack.Width+Pack.CasingThickness*2)*(Pack.Length+Pack.CasingThickness*2) - Pack.Volume)
+        Pack.CasingMass = Pack.CasingVolume * Pack.CasingDensity
+        Pack.Mass = Pack.Module.Mass * α + Pack.CasingMass
+
+        Ωₛ = Pack.Module.Ω*N+(167e-5u"Ω" * N * 2)
+        Pack.Ω = 1 / (1 / Ωₛ * M)
+        Pack.Ẇₕ = uconvert(u"kW",(Pack.Iₚ^2) * Pack.Ω)
+
+        Pack.η = uconvert(NoUnits,(Pₐ-Pack.Ẇₕ)/(Pₐ))
+        Pack.Energy = uconvert(u"kW*hr",Pack.Module.Energy * α)
+        Pack.Energy_Density = uconvert(u"W*hr/kg",Pack.Energy/Pack.Mass)
+        Pack.Usable_Eₚ = uconvert(u"kW*hr",Pack.Energy * Pack.η)
+        Pack.Usable_Density = uconvert(u"W*hr/kg",Pack.Usable_Eₚ/Pack.Mass)
+            
+        return nothing
+end
+
+
+    function Impedance(Electrode, Storage)
+        
+        if Storage == "Deposition"
+            Rp = uconvert(u"Ω",7.4*(Electrode.CoatingThickness/1e4u"μm/cm")/((Electrode.Porousity)*Electrode.Area*0.0089u"S/cm"))
+            Rct = (119.98u"Ω*cm^2"*ustrip(Electrode.CoatingThickness)^(-0.775))/Electrode.Area
+        else
+            Rp = uconvert(u"Ω",7*(Electrode.CoatingThickness/1e4u"μm/cm")/((Electrode.Porousity)*Electrode.Area*0.015u"S/cm"))
+            Rct = (50u"Ω*cm^2"*ustrip(Electrode.CoatingThickness)^(-0.775))/Electrode.Area
+        end
 
         if Rct/Rp <= 0.2 #Transport Limited
             L = sqrt(Rct*Rp)
